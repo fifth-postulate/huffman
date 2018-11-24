@@ -1,9 +1,145 @@
-module Huffman exposing (Tree(..), build, leaf, merge, occurence, table)
+module Huffman exposing (Bit(..), Tree(..), build, encodeString, frequencies, leaf, merge, occurence, tree)
 
 {-| Encode and decode data via a [Huffman code](https://en.wikipedia.org/wiki/Huffman_coding).
 -}
 
+import Dict exposing (Dict)
 import PriorityQueue exposing (Priority, PriorityQueue)
+
+
+encodeString : String -> Maybe Encoding
+encodeString word =
+    word
+        |> String.toList
+        |> encode
+
+
+{-| Encode a list of symbols
+-}
+encode : List comparable -> Maybe Encoding
+encode list =
+    let
+        table =
+            list
+                |> frequencies
+                |> tree
+                |> Maybe.map fromTree
+                |> Maybe.withDefault (Table Dict.empty)
+
+        encoder symbol =
+            toEncoding symbol table
+
+        concat x y =
+            case ( x, y ) of
+                ( Just xs, Just ys ) ->
+                    Just (xs ++ ys)
+
+                _ ->
+                    Nothing
+    in
+    list
+        |> List.map encoder
+        |> List.foldr concat (Just [])
+
+
+{-| Encodes a single symbol.
+-}
+toEncoding : comparable -> Table comparable -> Maybe Encoding
+toEncoding symbol (Table dictionary) =
+    Dict.get symbol dictionary
+
+
+{-| Create a Hufmman table from a Huffman code tree.
+-}
+fromTree : Tree comparable -> Table comparable
+fromTree aTree =
+    aTree
+        |> encodings
+        |> Dict.fromList
+        |> Table
+
+
+{-| Return all encodings present in the `Tree`.
+-}
+encodings : Tree symbol -> List ( symbol, Encoding )
+encodings aTree =
+    let
+        reverseEncoding ( symbol, encoding ) =
+            ( symbol, List.reverse encoding )
+    in
+    aTree
+        |> encodingsWithPrefix []
+        |> List.map reverseEncoding
+
+
+{-| Tail call variant of encodings.
+-}
+encodingsWithPrefix : Encoding -> Tree symbol -> List ( symbol, Encoding )
+encodingsWithPrefix prefix aTree =
+    case aTree of
+        Leaf _ symbol ->
+            [ ( symbol, prefix ) ]
+
+        Node _ left right ->
+            let
+                subEncodings bit subtree =
+                    encodingsWithPrefix (bit :: prefix) subtree
+            in
+            subEncodings O left ++ subEncodings I right
+
+
+{-| A Huffman table
+
+This can be used to encode symbols into `Encoding`s
+
+    toEncoding table 'a'
+
+-}
+type Table comparable
+    = Table (Dict comparable Encoding)
+
+
+{-| Alias to represent an encoding of a symbol
+-}
+type alias Encoding =
+    List Bit
+
+
+{-| Represents a bit.
+
+Is used in determining encoding for a symbol.
+
+-}
+type Bit
+    = O
+    | I
+
+
+{-| Returns the frequencies of each element in the list.
+-}
+frequencies : List comparable -> List ( comparable, Int )
+frequencies list =
+    tailCallFrequencies Dict.empty list
+
+
+{-| Tall call variant of frequencies.
+-}
+tailCallFrequencies : Dict comparable Int -> List comparable -> List ( comparable, Int )
+tailCallFrequencies accumulator list =
+    case list of
+        [] ->
+            Dict.toList accumulator
+
+        head :: tail ->
+            let
+                increment : Maybe Int -> Maybe Int
+                increment n =
+                    n
+                        |> Maybe.map (\i -> i + 1)
+                        |> Maybe.withDefault 1
+                        |> Just
+            in
+            tailCallFrequencies (Dict.update head increment accumulator) tail
 
 
 {-| Huffman code tree.
@@ -20,14 +156,14 @@ type Tree symbol
 
 {-| Create a Huffman code tree from a list of occurences of symbols.
 
-Table will fail to construct a Huffman code tree when there are no symbols to encode.
+`tree` will fail to construct a Huffman code tree when there are no symbols to encode.
 
 -}
-table : List ( symbol, Int ) -> Maybe (Tree symbol)
-table frequencyList =
+tree : List ( symbol, Int ) -> Maybe (Tree symbol)
+tree frequencyList =
     let
-        priority tree =
-            occurence tree
+        priority aTree =
+            occurence aTree
 
         empty =
             PriorityQueue.empty priority
@@ -47,18 +183,18 @@ build queue =
     case PriorityQueue.take 2 queue of
         [ left, right ] ->
             let
-                tree =
+                parent =
                     merge left right
 
                 nextQueue =
                     queue
                         |> PriorityQueue.drop 2
-                        |> PriorityQueue.insert tree
+                        |> PriorityQueue.insert parent
             in
             build nextQueue
 
-        [ tree ] ->
-            Just tree
+        [ aTree ] ->
+            Just aTree
 
         _ ->
             Nothing
@@ -85,8 +221,8 @@ merge left right =
 {-| Count the combined occurences of all the symbols in the tree.
 -}
 occurence : Tree symbol -> Int
-occurence tree =
-    case tree of
+occurence aTree =
+    case aTree of
         Leaf c _ ->
             c
 

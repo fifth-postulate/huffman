@@ -9,14 +9,40 @@ import Test exposing (..)
 suite : Test
 suite =
     describe "Huffman"
-        [ describe "creation"
+        [ describe "frequencies"
+            [ test "of characters should be correctly determined" <|
+                \_ ->
+                    let
+                        actual =
+                            "ABBCCCDDE"
+                                |> String.toList
+                                |> frequencies
+
+                        expected =
+                            [ ( 'A', 1 ), ( 'B', 2 ), ( 'C', 3 ), ( 'D', 2 ), ( 'E', 1 ) ]
+                    in
+                    Expect.equalLists actual expected
+            ]
+        , describe "creation"
             [ test "With empty frequency list should succeed" <|
                 \_ ->
-                    case table [ ( 'A', 1 ), ( 'B', 2 ) ] of
+                    case tree [ ( 'A', 1 ), ( 'B', 2 ) ] of
                         Just _ ->
                             pass
 
                         Nothing ->
                             fail "should have created a table"
+            ]
+        , describe "encodeString"
+            [ test "\"CBCABC\" should succeed" <|
+                \_ ->
+                    let
+                        actual =
+                            encodeString "CBCACBC"
+
+                        expected =
+                            Just [ I, O, I, I, O, O, I, O, I, I ]
+                    in
+                    Expect.equal actual expected
             ]
         ]
