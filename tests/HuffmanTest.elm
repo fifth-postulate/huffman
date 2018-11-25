@@ -43,11 +43,29 @@ suite =
                         expected =
                             [ I, O, I, I, O, O, I, O, I, I ]
                     in
-                        case result of
-                            Just (_, actual) ->
-                                Expect.equal actual expected
+                    case result of
+                        Just ( _, actual ) ->
+                            Expect.equal actual expected
 
-                            Nothing ->
-                                fail "should have encoded string"
+                        Nothing ->
+                            fail "should have encoded string"
+            ]
+        , describe "decode"
+            [ test "\"CBCABC\" should decoded" <|
+                \_ ->
+                    let
+                        aTree =
+                            tree [ ( 'A', 1 ), ( 'B', 2 ), ( 'C', 4 ) ]
+
+                        actual =
+                            aTree
+                                |> Maybe.andThen (\t -> decode t [ I, O, I, I, O, O, I, O, I, I ])
+
+                        expected =
+                            "CBCACBC"
+                                |> String.toList
+                                |> Just
+                    in
+                    Expect.equal actual expected
             ]
         ]
