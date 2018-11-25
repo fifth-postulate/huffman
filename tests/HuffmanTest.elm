@@ -37,12 +37,17 @@ suite =
             [ test "\"CBCABC\" should succeed" <|
                 \_ ->
                     let
-                        actual =
+                        result =
                             encodeString "CBCACBC"
 
                         expected =
-                            Just [ I, O, I, I, O, O, I, O, I, I ]
+                            [ I, O, I, I, O, O, I, O, I, I ]
                     in
-                    Expect.equal actual expected
+                        case result of
+                            Just (_, actual) ->
+                                Expect.equal actual expected
+
+                            Nothing ->
+                                fail "should have encoded string"
             ]
         ]

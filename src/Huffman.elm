@@ -7,7 +7,7 @@ import Dict exposing (Dict)
 import PriorityQueue exposing (Priority, PriorityQueue)
 
 
-encodeString : String -> Maybe Encoding
+encodeString : String -> Maybe (Tree Char, Encoding)
 encodeString word =
     word
         |> String.toList
@@ -16,13 +16,16 @@ encodeString word =
 
 {-| Encode a list of symbols
 -}
-encode : List comparable -> Maybe Encoding
+encode : List comparable -> Maybe (Tree comparable, Encoding)
 encode list =
     let
-        table =
+        aTree =
             list
                 |> frequencies
                 |> tree
+
+        table =
+            aTree
                 |> Maybe.map fromTree
                 |> Maybe.withDefault (Table Dict.empty)
 
@@ -36,10 +39,19 @@ encode list =
 
                 _ ->
                     Nothing
+
+        cat x y =
+            case ( x, y ) of
+                ( Just u, Just v ) ->
+                    Just (u, v)
+
+                _ ->
+                    Nothing
     in
     list
         |> List.map encoder
         |> List.foldr concat (Just [])
+        |> cat aTree
 
 
 {-| Encodes a single symbol.
